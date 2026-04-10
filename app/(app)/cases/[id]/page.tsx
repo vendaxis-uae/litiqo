@@ -3,18 +3,69 @@ import { useState, useEffect } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { ArrowLeft, FileText, Clock, Users, Download, Mail, MessageCircle, Link2, ExternalLink } from 'lucide-react'
 import { store, type Case } from '@/lib/store'
+import { getUser, getCase as getSupaCase, getTimeline as getSupaTimeline, getDocuments as getSupaDocs } from '@/lib/supabase'
 import { useToast } from '@/components/Toast'
+
+// CASE DETAIL — The individual case folder
+// When you open a folder from the filing cabinet, this is what you see
+// It has tabs: Overview (front page), Timeline (diary), Documents (attached papers)
+//
+// HOW DATA FLOWS:
+// 1. Page loads → checks if real user exists
+// 2. If real user → fetches THIS case + timeline + docs from DATABASE
+// 3. If demo → uses demo STORE data
 
 export default function CaseDetailPage() {
   const router = useRouter()
   const params = useParams()
   const { toast } = useToast()
-  const [c, setCase] = useState<Case | undefined>(store.getCase(params.id as string))
+  const [c, setCase] = useState<any>(store.getCase(params.id as string))
   const [activeTab, setActiveTab] = useState('overview')
   const [showDocModal, setShowDocModal] = useState(false)
   const [selectedDoc, setSelectedDoc] = useState<any>(null)
+  const [timeline, setTimeline] = useState<any[]>([])
+  const [documents, setDocuments] = useState<any[]>([])
 
   useEffect(() => {
+    async function loadCase() {
+      try {
+        const user = await getUser()
+        if (user) {
+          // REAL MODE: pull the actual folder from the filing cabinet
+          const realCase = await getSupaCase(params.id as string)
+          if (realCase) {
+            setCase({
+              ...realCase,
+              caseNumber: realCase.case_number,
+              type: realCase.case_type,
+              clientName: realCase.client_name,
+              clientEmail: realCase.client_email,
+              clientPhone: realCase.client_phone,
+              opposingParty: realCase.opposing_party,
+              courtName: realCase.court_name,
+              judgeName: realCase.judge_name,
+              filingDate: realCase.filing_date,
+              hearingDate: realCase.hearing_date,
+              createdAt: realCase.created_at,
+              timeline: [],
+              documents: [],
+            })
+          }
+          // Fetch timeline and documents too
+          const tl = await getSupaTimeline(params.id as string)
+          if (tl) setTimeline(tl.map((e: any) => ({
+            ...e, date: e.event_date, type: e.event_type, createdAt: e.created_at,
+          })))
+          const docs = await getSupaDocs(params.id as string)
+          if (docs) setDocuments(docs.map((d: any) => ({
+            ...d, type: d.doc_type, createdAt: d.created_at, status: d.generated_by_ai ? 'AI Generated' : 'Draft',
+          })))
+        }
+      } catch {
+        // Supabase not connected — use demo data
+      }
+    }
+    loadCase()
     return store.subscribe(() => setCase(store.getCase(params.id as string)))
   }, [params.id])
 
@@ -129,7 +180,7 @@ export default function CaseDetailPage() {
       {/* TIMELINE TAB */}
       {activeTab === 'timeline' && (
         <div style={{ maxWidth: 700 }}>
-          {c.timeline.length === 0 ? (
+          {(timeline.length > 0 ? timeline : c.timeline || []).length === 0 ? (
             <div className="card" style={{ textAlign: 'center', padding: 40 }}>
               <Clock size={40} style={{ opacity: 0.2, marginBottom: 12 }} />
               <p style={{ color: 'var(--tx2)' }}>No timeline events yet</p>
@@ -137,7 +188,7 @@ export default function CaseDetailPage() {
           ) : (
             <div style={{ position: 'relative', paddingLeft: 28 }}>
               <div style={{ position: 'absolute', left: 8, top: 0, bottom: 0, width: 2, background: 'var(--bd)' }} />
-              {c.timeline.map((ev, i) => (
+              {(timeline.length > 0 ? timeline : c.timeline || []).map((ev: any, i: number) => (
                 <div key={ev.id} className="animate-fade-in" style={{ marginBottom: 20, position: 'relative', animationDelay: `${i * 0.08}s` }}>
                   <div style={{ position: 'absolute', left: -22, top: 4, width: 12, height: 12, borderRadius: '50%', background: timelineIcon(ev.type), border: '2px solid var(--bgc)' }} />
                   <div className="card" style={{ padding: 18 }}>
@@ -158,17 +209,17 @@ export default function CaseDetailPage() {
       {activeTab === 'documents' && (
         <div>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-            <span style={{ fontSize: 14, color: 'var(--tx2)' }}>{c.documents.length} documents</span>
+            <span style={{ fontSize: 14, color: 'var(--tx2)' }}>{(documents.length > 0 ? documents : c.documents || []).length} documents</span>
             <button className="btn-primary" onClick={() => router.push('/documents')}><FileText size={14} /> Generate New</button>
           </div>
-          {c.documents.length === 0 ? (
+          {(documents.length > 0 ? documents : c.documents || []).length === 0 ? (
             <div className="card" style={{ textAlign: 'center', padding: 40 }}>
               <FileText size={40} style={{ opacity: 0.2, marginBottom: 12 }} />
               <p style={{ color: 'var(--tx2)' }}>No documents yet</p>
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {c.documents.map(d => (
+              {(documents.length > 0 ? documents : c.documents || []).map((d: any) => (
                 <div key={d.id} className="card" style={{ padding: '14px 20px', display: 'flex', alignItems: 'center', gap: 14, cursor: 'pointer' }}
                   onClick={() => { setSelectedDoc(d); setShowDocModal(true) }}
                 >
