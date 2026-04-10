@@ -3,7 +3,17 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { Briefcase, TrendingUp, Clock, CheckCircle, Bell, ArrowRight, Plus } from 'lucide-react'
 import { store } from '@/lib/store'
+import { getUser, getCases as getSupaCases, getNotifications as getSupaNotifs } from '@/lib/supabase'
 import { useToast } from '@/components/Toast'
+
+// DASHBOARD — The car's main instrument panel
+// Shows stats (speedometer), recent cases (trip history), activity (warning lights)
+//
+// HOW DATA FLOWS:
+// 1. Page loads → checks if real user exists (Supabase auth)
+// 2. If real user → fetches cases from DATABASE (engine)
+// 3. If demo mode → uses cases from STORE (demo data)
+// 4. Either way, the dashboard displays the same way
 
 export default function Dashboard() {
   const router = useRouter()
@@ -12,6 +22,45 @@ export default function Dashboard() {
   const [notifs, setNotifs] = useState(store.getNotifications())
 
   useEffect(() => {
+    async function loadData() {
+      try {
+        const user = await getUser()
+        if (user) {
+          // REAL MODE: fetch from Supabase (the real engine)
+          const realCases = await getSupaCases(user.id)
+          if (realCases && realCases.length > 0) {
+            setCases(realCases.map((c: any) => ({
+              ...c,
+              caseNumber: c.case_number,
+              type: c.case_type,
+              clientName: c.client_name,
+              clientEmail: c.client_email,
+              clientPhone: c.client_phone,
+              opposingParty: c.opposing_party,
+              courtName: c.court_name,
+              judgeName: c.judge_name,
+              filingDate: c.filing_date,
+              hearingDate: c.hearing_date,
+              createdAt: c.created_at,
+              timeline: [],
+              documents: [],
+            })))
+          }
+          const realNotifs = await getSupaNotifs(user.id)
+          if (realNotifs) setNotifs(realNotifs.map((n: any) => ({
+            ...n,
+            type: n.notification_type,
+            caseId: n.case_id,
+            caseTitle: n.cases?.title || '',
+            createdAt: n.created_at,
+          })))
+        }
+        // If no user, keep demo data from store
+      } catch {
+        // Supabase not connected yet — use demo data
+      }
+    }
+    loadData()
     return store.subscribe(() => {
       setCases(store.getCases())
       setNotifs(store.getNotifications())
@@ -20,9 +69,9 @@ export default function Dashboard() {
 
   const stats = [
     { label: 'Total Cases', value: cases.length, icon: Briefcase, color: 'var(--ac)', bg: 'var(--acg)' },
-    { label: 'Active Cases', value: cases.filter(c => c.status === 'Active' || c.status === 'In Progress').length, icon: TrendingUp, color: 'var(--ok)', bg: 'var(--okbg)' },
-    { label: 'Pending', value: cases.filter(c => c.status === 'New' || c.status === 'Filing Ready').length, icon: Clock, color: 'var(--wn)', bg: 'var(--wnbg)' },
-    { label: 'Closed', value: cases.filter(c => c.status === 'Closed').length, icon: CheckCircle, color: 'var(--ok)', bg: 'var(--okbg)' },
+    { label: 'Active Cases', value: cases.filter((c: any) => c.status === 'Active' || c.status === 'In Progress').length, icon: TrendingUp, color: 'var(--ok)', bg: 'var(--okbg)' },
+    { label: 'Pending', value: cases.filter((c: any) => c.status === 'New' || c.status === 'Filing Ready').length, icon: Clock, color: 'var(--wn)', bg: 'var(--wnbg)' },
+    { label: 'Closed', value: cases.filter((c: any) => c.status === 'Closed').length, icon: CheckCircle, color: 'var(--ok)', bg: 'var(--okbg)' },
   ]
 
   const statusColor = (status: string) => {
@@ -70,7 +119,7 @@ export default function Dashboard() {
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              {cases.slice(0, 5).map(c => (
+              {cases.slice(0, 5).map((c: any) => (
                 <div
                   key={c.id}
                   onClick={() => router.push(`/cases/${c.id}`)}
@@ -83,11 +132,11 @@ export default function Dashboard() {
                   onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--bd)'; e.currentTarget.style.background = 'transparent' }}
                 >
                   <div style={{ width: 40, height: 40, borderRadius: 10, background: 'var(--acg)', color: 'var(--ac)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 14, flexShrink: 0 }}>
-                    {c.type[0]}
+                    {(c.type || c.case_type || 'C')[0]}
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.title}</div>
-                    <div style={{ fontSize: 12, color: 'var(--tx2)' }}>{c.type} &middot; {c.jurisdiction}</div>
+                    <div style={{ fontSize: 12, color: 'var(--tx2)' }}>{c.type || c.case_type} &middot; {c.jurisdiction}</div>
                   </div>
                   <span className={`badge ${statusColor(c.status)}`}>{c.status}</span>
                 </div>
@@ -96,7 +145,7 @@ export default function Dashboard() {
           )}
         </div>
 
-        {/* Upcoming Events / Notifications */}
+        {/* Activity */}
         <div className="card">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
             <h2 style={{ fontSize: 16, fontWeight: 700 }}>Recent Activity</h2>
@@ -105,7 +154,7 @@ export default function Dashboard() {
             </button>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {notifs.slice(0, 5).map(n => {
+            {notifs.slice(0, 5).map((n: any) => {
               const typeColors: Record<string, { bg: string; color: string }> = {
                 deadline: { bg: 'var(--wnbg)', color: 'var(--wn)' },
                 ai_suggestion: { bg: 'var(--acg)', color: 'var(--ac)' },
@@ -128,7 +177,7 @@ export default function Dashboard() {
                   <div>
                     <div style={{ fontSize: 13, fontWeight: n.read ? 400 : 600, lineHeight: 1.5 }}>{n.message}</div>
                     <div style={{ fontSize: 11, color: 'var(--txm)', marginTop: 4 }}>
-                      {new Date(n.createdAt).toLocaleDateString()}
+                      {new Date(n.createdAt || n.created_at).toLocaleDateString()}
                     </div>
                   </div>
                 </div>
