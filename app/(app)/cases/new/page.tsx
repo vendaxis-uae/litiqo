@@ -3,7 +3,14 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { FileText, Mic, Upload, Mail, Zap, ArrowLeft, Plus } from 'lucide-react'
 import { store } from '@/lib/store'
+import { getUser, createCase as createSupaCase } from '@/lib/supabase'
 import { useToast } from '@/components/Toast'
+
+// NEW CASE — The car dealer's order form
+// When you buy a new car, you fill out the order form
+// This page IS that form — it collects case info and either:
+// - Saves to DATABASE (real engine) if user is logged in
+// - Saves to STORE (demo showroom) if in demo mode
 
 const intakeTabs = [
   { id: 'form', label: 'Form', icon: FileText },
@@ -31,34 +38,96 @@ export default function NewCasePage() {
   })
   const [pasteText, setPasteText] = useState('')
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!form.title) { toast('Please enter a case title', 'error'); return }
-    const newCase = store.addCase({
-      ...form,
-      amount: Number(form.amount) || 0,
-      caseNumber: `CASE-${Date.now().toString().slice(-6)}`,
-      status: 'New',
-    } as any)
-    toast('Case created successfully!')
-    router.push(`/cases/${newCase.id}`)
+    try {
+      const user = await getUser()
+      if (user) {
+        // REAL MODE: save to database (putting the folder in the real filing cabinet)
+        const newCase = await createSupaCase({
+          user_id: user.id,
+          case_number: `CASE-${Date.now().toString().slice(-6)}`,
+          title: form.title,
+          case_type: form.type,
+          jurisdiction: form.jurisdiction,
+          priority: form.priority,
+          client_name: form.clientName,
+          client_email: form.clientEmail,
+          client_phone: form.clientPhone,
+          opposing_party: form.opposingParty,
+          court_name: form.courtName,
+          judge_name: form.judgeName,
+          filing_date: form.filingDate || undefined,
+          hearing_date: form.hearingDate || undefined,
+          amount: Number(form.amount) || 0,
+          description: form.description,
+        })
+        toast('Case created successfully!')
+        router.push(`/cases/${newCase.id}`)
+      } else {
+        // DEMO MODE: save to local store (the showroom display)
+        const newCase = store.addCase({
+          ...form,
+          amount: Number(form.amount) || 0,
+          caseNumber: `CASE-${Date.now().toString().slice(-6)}`,
+          status: 'New',
+        } as any)
+        toast('Case created successfully!')
+        router.push(`/cases/${newCase.id}`)
+      }
+    } catch (err: any) {
+      // If Supabase fails, fall back to demo store
+      const newCase = store.addCase({
+        ...form,
+        amount: Number(form.amount) || 0,
+        caseNumber: `CASE-${Date.now().toString().slice(-6)}`,
+        status: 'New',
+      } as any)
+      toast('Case created (demo mode)')
+      router.push(`/cases/${newCase.id}`)
+    }
   }
 
-  const handlePasteSubmit = () => {
+  const handlePasteSubmit = async () => {
     if (!pasteText.trim()) { toast('Please paste some notes first', 'error'); return }
-    const newCase = store.addCase({
-      title: `Case from Notes — ${new Date().toLocaleDateString()}`,
-      type: 'Contract Dispute',
-      jurisdiction: 'UAE (DIFC)',
-      priority: 'Medium',
-      clientName: '', clientEmail: '', clientPhone: '', opposingParty: '',
-      courtName: '', judgeName: '', filingDate: '', hearingDate: '',
-      amount: 0,
-      description: pasteText,
-      caseNumber: `CASE-${Date.now().toString().slice(-6)}`,
-      status: 'New',
-    } as any)
-    toast('Case created from notes!')
-    router.push(`/cases/${newCase.id}`)
+    try {
+      const user = await getUser()
+      if (user) {
+        const newCase = await createSupaCase({
+          user_id: user.id,
+          case_number: `CASE-${Date.now().toString().slice(-6)}`,
+          title: `Case from Notes — ${new Date().toLocaleDateString()}`,
+          case_type: 'Contract Dispute',
+          jurisdiction: 'UAE (DIFC)',
+          priority: 'Medium',
+          description: pasteText,
+        })
+        toast('Case created from notes!')
+        router.push(`/cases/${newCase.id}`)
+      } else {
+        const newCase = store.addCase({
+          title: `Case from Notes — ${new Date().toLocaleDateString()}`,
+          type: 'Contract Dispute', jurisdiction: 'UAE (DIFC)', priority: 'Medium',
+          clientName: '', clientEmail: '', clientPhone: '', opposingParty: '',
+          courtName: '', judgeName: '', filingDate: '', hearingDate: '',
+          amount: 0, description: pasteText,
+          caseNumber: `CASE-${Date.now().toString().slice(-6)}`, status: 'New',
+        } as any)
+        toast('Case created from notes!')
+        router.push(`/cases/${newCase.id}`)
+      }
+    } catch {
+      const newCase = store.addCase({
+        title: `Case from Notes — ${new Date().toLocaleDateString()}`,
+        type: 'Contract Dispute', jurisdiction: 'UAE (DIFC)', priority: 'Medium',
+        clientName: '', clientEmail: '', clientPhone: '', opposingParty: '',
+        courtName: '', judgeName: '', filingDate: '', hearingDate: '',
+        amount: 0, description: pasteText,
+        caseNumber: `CASE-${Date.now().toString().slice(-6)}`, status: 'New',
+      } as any)
+      toast('Case created from notes (demo mode)')
+      router.push(`/cases/${newCase.id}`)
+    }
   }
 
   return (
