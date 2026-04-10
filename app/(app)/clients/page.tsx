@@ -2,7 +2,12 @@
 import { useState, useEffect } from 'react'
 import { Users, Plus, X, Check, Clock, AlertCircle, Send } from 'lucide-react'
 import { store } from '@/lib/store'
+import { getUser, getCases as getSupaCases, getInvitations as getSupaInvites, inviteClient as supaInviteClient } from '@/lib/supabase'
 import { useToast } from '@/components/Toast'
+
+// CLIENT PORTAL — The passenger access pass
+// Like giving someone a key card to enter specific rooms in a building
+// The lawyer (building owner) decides which rooms each client can access
 
 const permissionsList = [
   { id: 'view_case', label: 'View Case Details', desc: 'Access case information and status' },
@@ -19,8 +24,39 @@ export default function ClientPortalPage() {
   const [showInvite, setShowInvite] = useState(false)
   const [inviteForm, setInviteForm] = useState({ caseId: '', name: '', email: '' })
   const [permissions, setPermissions] = useState(['view_case', 'view_docs'])
+  const [userId, setUserId] = useState<string | null>(null)
 
   useEffect(() => {
+    async function loadData() {
+      try {
+        const user = await getUser()
+        if (user) {
+          setUserId(user.id)
+          const realCases = await getSupaCases(user.id)
+          if (realCases && realCases.length > 0) {
+            setCases(realCases.map((c: any) => ({
+              ...c, caseNumber: c.case_number, type: c.case_type,
+              clientName: c.client_name, timeline: [], documents: [],
+            })))
+          }
+          const realInvites = await getSupaInvites(user.id)
+          if (realInvites && realInvites.length > 0) {
+            setClients(realInvites.map((inv: any) => ({
+              id: inv.id,
+              name: inv.client_name,
+              email: inv.client_email,
+              caseId: inv.case_id,
+              caseTitle: inv.cases?.title || '',
+              permissions: inv.permissions || [],
+              status: inv.status,
+            })))
+          }
+        }
+      } catch {
+        // Use demo data
+      }
+    }
+    loadData()
     return store.subscribe(() => {
       setCases(store.getCases())
       setClients(store.getInvitedClients())
@@ -31,18 +67,40 @@ export default function ClientPortalPage() {
     setPermissions(prev => prev.includes(id) ? prev.filter(p => p !== id) : [...prev, id])
   }
 
-  const handleInvite = () => {
+  const handleInvite = async () => {
     if (!inviteForm.caseId) { toast('Please select a case', 'error'); return }
     if (!inviteForm.name || !inviteForm.email) { toast('Please fill in client details', 'error'); return }
-    const c = store.getCase(inviteForm.caseId)
-    store.inviteClient({
-      name: inviteForm.name,
-      email: inviteForm.email,
-      caseId: inviteForm.caseId,
-      caseTitle: c?.title || '',
-      permissions: permissions.map(p => permissionsList.find(pl => pl.id === p)?.label || p),
-    })
-    toast('Invitation sent successfully!')
+    const permLabels = permissions.map(p => permissionsList.find(pl => pl.id === p)?.label || p)
+
+    if (userId) {
+      try {
+        await supaInviteClient({
+          case_id: inviteForm.caseId,
+          invited_by: userId,
+          client_name: inviteForm.name,
+          client_email: inviteForm.email,
+          permissions: permLabels,
+        })
+        toast('Invitation sent successfully!')
+      } catch {
+        // Fallback to demo store
+        const c = store.getCase(inviteForm.caseId)
+        store.inviteClient({
+          name: inviteForm.name, email: inviteForm.email,
+          caseId: inviteForm.caseId, caseTitle: c?.title || '',
+          permissions: permLabels,
+        })
+        toast('Invitation sent (demo mode)')
+      }
+    } else {
+      const c = store.getCase(inviteForm.caseId)
+      store.inviteClient({
+        name: inviteForm.name, email: inviteForm.email,
+        caseId: inviteForm.caseId, caseTitle: c?.title || '',
+        permissions: permLabels,
+      })
+      toast('Invitation sent successfully!')
+    }
     setShowInvite(false)
     setInviteForm({ caseId: '', name: '', email: '' })
     setPermissions(['view_case', 'view_docs'])
