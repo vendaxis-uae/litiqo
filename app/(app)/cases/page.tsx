@@ -3,6 +3,15 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { Briefcase, Plus, Search, Filter } from 'lucide-react'
 import { store } from '@/lib/store'
+import { getUser, getCases as getSupaCases } from '@/lib/supabase'
+
+// CASES LIST — The filing cabinet drawer
+// Shows all cases with search/filter (like alphabetical dividers in the cabinet)
+//
+// HOW DATA FLOWS:
+// 1. Page loads → checks if real user exists
+// 2. If real user → pulls cases from DATABASE (the real filing cabinet)
+// 3. If demo mode → pulls cases from STORE (the showroom display)
 
 export default function CasesPage() {
   const router = useRouter()
@@ -12,13 +21,44 @@ export default function CasesPage() {
   const [filterType, setFilterType] = useState('All')
 
   useEffect(() => {
+    async function loadCases() {
+      try {
+        const user = await getUser()
+        if (user) {
+          const realCases = await getSupaCases(user.id)
+          if (realCases && realCases.length > 0) {
+            setCases(realCases.map((c: any) => ({
+              ...c,
+              caseNumber: c.case_number,
+              type: c.case_type,
+              clientName: c.client_name,
+              clientEmail: c.client_email,
+              clientPhone: c.client_phone,
+              opposingParty: c.opposing_party,
+              courtName: c.court_name,
+              judgeName: c.judge_name,
+              filingDate: c.filing_date,
+              hearingDate: c.hearing_date,
+              createdAt: c.created_at,
+              timeline: [],
+              documents: [],
+            })))
+          }
+        }
+      } catch {
+        // Supabase not connected — use demo data
+      }
+    }
+    loadCases()
     return store.subscribe(() => setCases(store.getCases()))
   }, [])
 
-  const filtered = cases.filter(c => {
-    if (search && !c.title.toLowerCase().includes(search.toLowerCase()) && !c.caseNumber.toLowerCase().includes(search.toLowerCase())) return false
+  const filtered = cases.filter((c: any) => {
+    const caseNum = c.caseNumber || c.case_number || ''
+    const caseType = c.type || c.case_type || ''
+    if (search && !c.title.toLowerCase().includes(search.toLowerCase()) && !caseNum.toLowerCase().includes(search.toLowerCase())) return false
     if (filterStatus !== 'All' && c.status !== filterStatus) return false
-    if (filterType !== 'All' && c.type !== filterType) return false
+    if (filterType !== 'All' && caseType !== filterType) return false
     return true
   })
 
@@ -98,13 +138,13 @@ export default function CasesPage() {
               style={{ cursor: 'pointer', padding: '18px 24px', display: 'flex', alignItems: 'center', gap: 16, animationDelay: `${i * 0.05}s` }}
             >
               <div style={{ width: 44, height: 44, borderRadius: 12, background: 'var(--acg)', color: 'var(--ac)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: 16, flexShrink: 0 }}>
-                {c.type[0]}
+                {(c.type || c.case_type || 'C')[0]}
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 3 }}>{c.title}</div>
                 <div style={{ fontSize: 12, color: 'var(--tx2)', display: 'flex', gap: 16 }}>
-                  <span>{c.caseNumber}</span>
-                  <span>{c.type}</span>
+                  <span>{c.caseNumber || c.case_number}</span>
+                  <span>{c.type || c.case_type}</span>
                   <span>{c.jurisdiction}</span>
                 </div>
               </div>
