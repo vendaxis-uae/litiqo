@@ -2,7 +2,18 @@
 import { useState, useEffect } from 'react'
 import { FileText, Sparkles, Check, Loader2, Copy, Download } from 'lucide-react'
 import { store } from '@/lib/store'
+import { getUser, getCases as getSupaCases, createDocument as createSupaDoc } from '@/lib/supabase'
 import { useToast } from '@/components/Toast'
+
+// DOCUMENT GENERATOR — The car's GPS navigation system
+// Just like GPS plans your route, AI plans your legal document
+// You tell it WHERE you want to go (case + document type)
+// It generates the ROUTE (the document content)
+//
+// HOW DATA FLOWS:
+// 1. User picks a case and document type
+// 2. AI generates content (simulated for now — will connect to Claude API later)
+// 3. Document gets saved to the case (either in DB or demo store)
 
 const templates = [
   { name: 'Demand Letter', type: 'Letter', desc: 'Formal demand for payment or action' },
@@ -35,8 +46,32 @@ export default function DocumentsPage() {
   const [genStep, setGenStep] = useState(0)
   const [genDone, setGenDone] = useState(false)
   const [preview, setPreview] = useState('')
+  const [userId, setUserId] = useState<string | null>(null)
 
   useEffect(() => {
+    async function loadData() {
+      try {
+        const user = await getUser()
+        if (user) {
+          setUserId(user.id)
+          const realCases = await getSupaCases(user.id)
+          if (realCases && realCases.length > 0) {
+            setCases(realCases.map((c: any) => ({
+              ...c,
+              caseNumber: c.case_number,
+              type: c.case_type,
+              clientName: c.client_name,
+              opposingParty: c.opposing_party,
+              timeline: [],
+              documents: [],
+            })))
+          }
+        }
+      } catch {
+        // Use demo data
+      }
+    }
+    loadData()
     return store.subscribe(() => setCases(store.getCases()))
   }, [])
 
@@ -64,17 +99,22 @@ export default function DocumentsPage() {
         clearInterval(interval)
         setGenDone(true)
         setGenerating(false)
-        const c = store.getCase(selectedCase)
+        // Find the case from our loaded cases (works for both Supabase and demo)
+        const c = cases.find((cs: any) => cs.id === selectedCase) || store.getCase(selectedCase)
+        const caseNum = c?.caseNumber || c?.case_number || 'N/A'
+        const caseType = c?.type || c?.case_type || ''
+        const clientName = c?.clientName || c?.client_name || '[Client]'
+        const oppParty = c?.opposingParty || c?.opposing_party || '[Opposing Party]'
         setPreview(
           `${docName.toUpperCase()}\n\n` +
           `Case: ${c?.title || 'Unknown'}\n` +
-          `Case Number: ${c?.caseNumber || 'N/A'}\n` +
+          `Case Number: ${caseNum}\n` +
           `Jurisdiction: ${c?.jurisdiction || 'N/A'}\n` +
           `Date: ${new Date().toLocaleDateString()}\n\n` +
           `─────────────────────────────\n\n` +
           `TO WHOM IT MAY CONCERN\n\n` +
           `Re: ${c?.title}\n\n` +
-          `We write on behalf of our client, ${c?.clientName || '[Client]'}, in connection with the above-referenced matter against ${c?.opposingParty || '[Opposing Party]'}.\n\n` +
+          `We write on behalf of our client, ${clientName}, in connection with the above-referenced matter against ${oppParty}.\n\n` +
           `This ${docType || 'document'} is submitted pursuant to the laws and regulations of ${c?.jurisdiction || '[Jurisdiction]'}.\n\n` +
           `${c?.description || ''}\n\n` +
           `The total amount in dispute is ${c?.amount ? '$' + c.amount.toLocaleString() : '[Amount]'}.\n\n` +
@@ -83,9 +123,21 @@ export default function DocumentsPage() {
           `[Attorney Name]\n` +
           `Litiqo Legal Services`
         )
-        // Add document to case
-        if (c) {
-          store.addDocument(c.id, { name: `${docName}.pdf`, type: docType || 'Brief', status: 'Draft' })
+        // Add document to case — save to real DB if logged in, or demo store
+        const c2 = cases.find((cs: any) => cs.id === selectedCase)
+        if (c2 && userId) {
+          try {
+            await createSupaDoc({
+              case_id: c2.id,
+              name: `${docName}.pdf`,
+              doc_type: docType || 'Brief',
+              content: preview,
+              generated_by_ai: true,
+              created_by: userId,
+            })
+          } catch { /* fallback to demo */ }
+        } else if (c2) {
+          store.addDocument(c2.id, { name: `${docName}.pdf`, type: docType || 'Brief', status: 'Draft' })
         }
         toast('Document generated successfully!')
       }
