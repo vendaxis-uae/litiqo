@@ -3,14 +3,41 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { Bell, Clock, Sparkles, Users, AlertTriangle, CheckCheck, ExternalLink } from 'lucide-react'
 import { store } from '@/lib/store'
+import { getUser, getNotifications as getSupaNotifs, markNotificationRead, markAllNotificationsRead } from '@/lib/supabase'
 import { useToast } from '@/components/Toast'
+
+// NOTIFICATIONS — The car's dashboard warning lights
+// Just like your car has lights for low fuel, engine check, etc.
+// This page shows ALL warnings and updates about your cases
 
 export default function NotificationsPage() {
   const router = useRouter()
   const { toast } = useToast()
   const [notifs, setNotifs] = useState(store.getNotifications())
+  const [userId, setUserId] = useState<string | null>(null)
 
   useEffect(() => {
+    async function loadNotifs() {
+      try {
+        const user = await getUser()
+        if (user) {
+          setUserId(user.id)
+          const realNotifs = await getSupaNotifs(user.id)
+          if (realNotifs) {
+            setNotifs(realNotifs.map((n: any) => ({
+              ...n,
+              type: n.notification_type,
+              caseId: n.case_id,
+              caseTitle: n.cases?.title || '',
+              createdAt: n.created_at,
+            })))
+          }
+        }
+      } catch {
+        // Use demo data
+      }
+    }
+    loadNotifs()
     return store.subscribe(() => setNotifs(store.getNotifications()))
   }, [])
 
@@ -33,7 +60,12 @@ export default function NotificationsPage() {
           </p>
         </div>
         {unreadCount > 0 && (
-          <button className="btn-secondary" onClick={() => { store.markAllRead(); toast('All notifications marked as read') }}>
+          <button className="btn-secondary" onClick={async () => {
+            if (userId) { try { await markAllNotificationsRead(userId) } catch {} }
+            store.markAllRead()
+            setNotifs(prev => prev.map((n: any) => ({ ...n, read: true })))
+            toast('All notifications marked as read')
+          }}>
             <CheckCheck size={14} /> Mark all read
           </button>
         )}
@@ -59,9 +91,11 @@ export default function NotificationsPage() {
                   cursor: 'pointer', background: n.read ? 'var(--bgc)' : 'var(--glass2)',
                   animationDelay: `${i * 0.05}s`,
                 }}
-                onClick={() => {
+                onClick={async () => {
+                  if (userId) { try { await markNotificationRead(n.id) } catch {} }
                   store.markRead(n.id)
-                  if (n.caseId) router.push(`/cases/${n.caseId}`)
+                  setNotifs(prev => prev.map((notif: any) => notif.id === n.id ? { ...notif, read: true } : notif))
+                  if (n.caseId || n.case_id) router.push(`/cases/${n.caseId || n.case_id}`)
                 }}
               >
                 <div style={{
