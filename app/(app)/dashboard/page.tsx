@@ -18,8 +18,8 @@ import { useToast } from '@/components/Toast'
 export default function Dashboard() {
   const router = useRouter()
   const { toast } = useToast()
-  const [cases, setCases] = useState(store.getCases())
-  const [notifs, setNotifs] = useState(store.getNotifications())
+  const [cases, setCases] = useState<any[]>(store.getCases())
+  const [notifs, setNotifs] = useState<any[]>(store.getNotifications())
 
   useEffect(() => {
     async function loadData() {
