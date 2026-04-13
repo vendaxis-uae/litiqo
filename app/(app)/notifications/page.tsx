@@ -13,7 +13,7 @@ import { useToast } from '@/components/Toast'
 export default function NotificationsPage() {
   const router = useRouter()
   const { toast } = useToast()
-  const [notifs, setNotifs] = useState(store.getNotifications())
+  const [notifs, setNotifs] = useState<any[]>(store.getNotifications())
   const [userId, setUserId] = useState<string | null>(null)
 
   useEffect(() => {
