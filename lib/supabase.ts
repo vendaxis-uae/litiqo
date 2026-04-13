@@ -1,35 +1,35 @@
 // ============================================
-// SUPABASE CLIENT — THE IGNITION KEY
+// SUPABASE CLIENT â THE IGNITION KEY
 // ============================================
 // This file creates the connection to your database
 // Think of it as turning the key in the ignition
 // Without this, the frontend can't talk to the engine
 //
 // HOW IT WORKS:
-// 1. Your app loads → this file runs
+// 1. Your app loads â this file runs
 // 2. It connects to YOUR specific Supabase database using YOUR URL and key
 // 3. Now every page can read/write data through this connection
-// 4. The anon key is safe to expose — Row Level Security protects everything
+// 4. The anon key is safe to expose â Row Level Security protects everything
 
 import { createClient } from '@supabase/supabase-js'
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
 
-// This is the "key in the ignition" — creates the connection
+// This is the "key in the ignition" â creates the connection
 export const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
 // ============================================
-// DATABASE FUNCTIONS — THE TRANSMISSION
+// DATABASE FUNCTIONS â THE TRANSMISSION
 // ============================================
 // Each function below is a gear in the transmission
 // The frontend (steering wheel) calls these functions
 // These functions talk to the database (engine)
-// The engine sends back data → the dashboard displays it
+// The engine sends back data â the dashboard displays it
 //
 // Example flow:
-// User clicks "Create Case" → createCase() runs →
-// Supabase saves it → returns the new case →
+// User clicks "Create Case" â createCase() runs â
+// Supabase saves it â returns the new case â
 // Dashboard shows the case
 
 // ---------- CASES (Main Filing Cabinet) ----------
@@ -99,6 +99,15 @@ export async function updateCase(caseId: string, updates: Record<string, any>) {
 
   if (error) throw error
   return data
+}
+
+export async function deleteCase(caseId: string) {
+  const { error } = await supabase
+    .from('cases')
+    .delete()
+    .eq('id', caseId)
+
+  if (error) throw error
 }
 
 // ---------- TIMELINE (The Diary) ----------
