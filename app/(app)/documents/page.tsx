@@ -38,7 +38,7 @@ const genSteps = [
 
 export default function DocumentsPage() {
   const { toast } = useToast()
-  const [cases, setCases] = useState(store.getCases())
+  const [cases, setCases] = useState<any[]>(store.getCases())
   const [selectedCase, setSelectedCase] = useState('')
   const [docName, setDocName] = useState('')
   const [docType, setDocType] = useState('')
