@@ -1,5 +1,5 @@
 'use client'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { signIn } from '@/lib/supabase'
 
@@ -9,6 +9,14 @@ export default function LoginPage() {
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [successMsg, setSuccessMsg] = useState('')
+
+  useEffect(() => {
+    // Show success message if redirected from signup
+    if (typeof window !== 'undefined' && window.location.search.includes('registered=true')) {
+      setSuccessMsg('Account created! You can now sign in.')
+    }
+  }, [])
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -17,8 +25,8 @@ export default function LoginPage() {
     try {
       // This is like putting the key in the ignition and turning it
       // Supabase checks: does this email exist? Is the password correct?
-      // If yes → gives back a session token (like the engine starting)
-      // If no → throws an error (like the key not fitting)
+      // If yes â gives back a session token (like the engine starting)
+      // If no â throws an error (like the key not fitting)
       await signIn(email, password)
       router.push('/dashboard')
     } catch (err: any) {
@@ -28,7 +36,8 @@ export default function LoginPage() {
   }
 
   const handleDemoLogin = () => {
-    // Skip auth for demo — goes straight to dashboard with demo data
+    // Set demo flag so the app layout knows to allow access without auth
+    sessionStorage.setItem('litiqo_demo', 'true')
     router.push('/dashboard')
   }
 
@@ -45,6 +54,13 @@ export default function LoginPage() {
         <div style={{ background: 'var(--bgc)', border: '1px solid var(--bd)', borderRadius: 20, padding: 40, boxShadow: 'var(--shadow)' }}>
           <h2 style={{ fontSize: 24, fontWeight: 800, marginBottom: 6 }}>Welcome back</h2>
           <p style={{ fontSize: 14, color: 'var(--tx2)', marginBottom: 28 }}>Sign in to your account</p>
+
+          {/* Success message from signup */}
+          {successMsg && (
+            <div style={{ padding: '12px 16px', borderRadius: 10, background: 'var(--okbg)', color: 'var(--ok)', fontSize: 13, fontWeight: 500, marginBottom: 20, border: '1px solid var(--okbd)' }}>
+              {successMsg}
+            </div>
+          )}
 
           {/* Error message */}
           {error && (
@@ -63,7 +79,7 @@ export default function LoginPage() {
               fontFamily: 'inherit', transition: 'all 0.25s', marginBottom: 16,
             }}
           >
-            ✨ Try Demo (no login required)
+            â¨ Try Demo (no login required)
           </button>
 
           {/* Divider */}
