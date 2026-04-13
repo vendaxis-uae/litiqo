@@ -15,7 +15,7 @@ import { getUser, getCases as getSupaCases } from '@/lib/supabase'
 
 export default function CasesPage() {
   const router = useRouter()
-  const [cases, setCases] = useState(store.getCases())
+  const [cases, setCases] = useState<any[]>(store.getCases())
   const [search, setSearch] = useState('')
   const [filterStatus, setFilterStatus] = useState('All')
   const [filterType, setFilterType] = useState('All')
@@ -138,13 +138,13 @@ export default function CasesPage() {
               style={{ cursor: 'pointer', padding: '18px 24px', display: 'flex', alignItems: 'center', gap: 16, animationDelay: `${i * 0.05}s` }}
             >
               <div style={{ width: 44, height: 44, borderRadius: 12, background: 'var(--acg)', color: 'var(--ac)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: 16, flexShrink: 0 }}>
-                {(c.type || c.case_type || 'C')[0]}
+                {(c.type || 'C')[0]}
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 3 }}>{c.title}</div>
                 <div style={{ fontSize: 12, color: 'var(--tx2)', display: 'flex', gap: 16 }}>
-                  <span>{c.caseNumber || c.case_number}</span>
-                  <span>{c.type || c.case_type}</span>
+                  <span>{c.caseNumber}</span>
+                  <span>{c.type}</span>
                   <span>{c.jurisdiction}</span>
                 </div>
               </div>
