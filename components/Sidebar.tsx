@@ -1,8 +1,10 @@
 'use client'
 import { usePathname, useRouter } from 'next/navigation'
-import { LayoutDashboard, Briefcase, FileText, Users, Bell, Plus, Settings, Moon, Sun } from 'lucide-react'
+import { LayoutDashboard, Briefcase, FileText, Users, Bell, Plus, Moon, Sun, LogOut } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import { store } from '@/lib/store'
+import { signOut } from '@/lib/supabase'
+import { useUser } from '@/lib/UserContext'
 
 const navItems = [
   { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
@@ -15,12 +17,32 @@ const navItems = [
 export default function Sidebar() {
   const pathname = usePathname()
   const router = useRouter()
+  const { user, demoMode } = useUser()
   const [dark, setDark] = useState(false)
   const [unread, setUnread] = useState(store.getUnreadCount())
+  const [loggingOut, setLoggingOut] = useState(false)
 
   useEffect(() => {
     return store.subscribe(() => setUnread(store.getUnreadCount()))
   }, [])
+
+  // Get user display info
+  const userName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || (demoMode ? 'Demo User' : 'User')
+  const userInitial = userName.charAt(0).toUpperCase()
+  const userSub = demoMode ? 'Demo Mode' : (user?.user_metadata?.firm_name || user?.email || 'Law Firm')
+
+  const handleLogout = async () => {
+    setLoggingOut(true)
+    try {
+      if (!demoMode) {
+        await signOut()
+      }
+      sessionStorage.removeItem('litiqo_demo')
+      router.replace('/auth/login')
+    } catch {
+      router.replace('/auth/login')
+    }
+  }
 
   const toggleDark = () => {
     setDark(!dark)
@@ -105,28 +127,42 @@ export default function Sidebar() {
 
       {/* Footer */}
       <div style={{ padding: '16px 24px', borderTop: '1px solid var(--bd)', marginTop: 8 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
           <div style={{
             width: 36, height: 36, borderRadius: 10,
             background: 'var(--grad1)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             color: '#fff', fontWeight: 700, fontSize: 14,
           }}>
-            A
+            {userInitial}
           </div>
-          <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--tx)' }}>Aadil</div>
-            <div style={{ fontSize: 11, color: 'var(--txm)' }}>Law Firm</div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--tx)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{userName}</div>
+            <div style={{ fontSize: 11, color: 'var(--txm)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{userSub}</div>
           </div>
           <button onClick={toggleDark} style={{
             width: 32, height: 32, borderRadius: 8,
             border: '1px solid var(--bd)', background: 'none',
             cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
-            color: 'var(--tx2)', transition: 'all 0.25s',
+            color: 'var(--tx2)', transition: 'all 0.25s', flexShrink: 0,
           }}>
             {dark ? <Sun size={14} /> : <Moon size={14} />}
           </button>
         </div>
+        <button
+          onClick={handleLogout}
+          disabled={loggingOut}
+          style={{
+            width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+            padding: '9px 16px', borderRadius: 10, border: '1px solid var(--bd)',
+            background: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 500,
+            color: 'var(--tx2)', fontFamily: 'inherit', transition: 'all 0.25s',
+            opacity: loggingOut ? 0.6 : 1,
+          }}
+        >
+          <LogOut size={14} />
+          {loggingOut ? 'Signing out...' : 'Sign Out'}
+        </button>
       </div>
     </aside>
   )
