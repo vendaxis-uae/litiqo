@@ -5,12 +5,13 @@ import Sidebar from '@/components/Sidebar'
 import Topbar from '@/components/Topbar'
 import { ToastProvider } from '@/components/Toast'
 import { getUser } from '@/lib/supabase'
+import { UserContext } from '@/lib/UserContext'
 
 // This layout wraps ALL app pages (dashboard, cases, documents, etc.)
 // Think of it as the car's SECURITY GATE
 // Before showing anything, it checks: is someone in the driver's seat?
-// If no user is logged in → redirects to login page
-// If user IS logged in → shows the app with sidebar + topbar
+// If no user is logged in AND not in demo mode â redirects to login page
+// If user IS logged in â shows the app with sidebar + topbar
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter()
@@ -19,23 +20,36 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const [demoMode, setDemoMode] = useState(false)
 
   useEffect(() => {
+    // Check if user opted into demo mode (set by login page "Try Demo" button)
+    const isDemo = sessionStorage.getItem('litiqo_demo') === 'true'
+
     async function checkAuth() {
       try {
         const u = await getUser()
         if (u) {
           setUser(u)
-        } else {
-          // No real user — check if we're in demo mode
-          // Demo mode lets people explore without signing up
+          // Clear demo flag if real user is logged in
+          sessionStorage.removeItem('litiqo_demo')
+        } else if (isDemo) {
+          // No real user, but they clicked "Try Demo" â allow access
           setDemoMode(true)
+        } else {
+          // No user AND no demo flag â redirect to login
+          router.replace('/auth/login')
+          return
         }
       } catch {
-        setDemoMode(true)
+        if (isDemo) {
+          setDemoMode(true)
+        } else {
+          router.replace('/auth/login')
+          return
+        }
       }
       setLoading(false)
     }
     checkAuth()
-  }, [])
+  }, [router])
 
   // Show loading spinner while checking auth
   if (loading) {
@@ -49,26 +63,28 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     )
   }
 
-  // User is either logged in OR in demo mode — show the app
+  // User is either logged in OR in demo mode â show the app
   return (
-    <ToastProvider>
-      <div style={{ display: 'flex', height: '100vh', overflow: 'hidden' }}>
-        <Sidebar />
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-          <Topbar />
-          {demoMode && (
-            <div style={{
-              padding: '8px 32px', background: 'var(--acg)', borderBottom: '1px solid var(--bd)',
-              fontSize: 13, color: 'var(--ac)', fontWeight: 500, display: 'flex', alignItems: 'center', justifyContent: 'space-between'
-            }}>
-              <span>You&apos;re in demo mode — data won&apos;t be saved. <a onClick={() => router.push('/auth/signup')} style={{ fontWeight: 700, cursor: 'pointer', textDecoration: 'underline' }}>Sign up</a> to save your work.</span>
-            </div>
-          )}
-          <main style={{ flex: 1, overflow: 'auto', padding: 32 }}>
-            {children}
-          </main>
+    <UserContext.Provider value={{ user, demoMode }}>
+      <ToastProvider>
+        <div style={{ display: 'flex', height: '100vh', overflow: 'hidden' }}>
+          <Sidebar />
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+            <Topbar />
+            {demoMode && (
+              <div style={{
+                padding: '8px 32px', background: 'var(--acg)', borderBottom: '1px solid var(--bd)',
+                fontSize: 13, color: 'var(--ac)', fontWeight: 500, display: 'flex', alignItems: 'center', justifyContent: 'space-between'
+              }}>
+                <span>You&apos;re in demo mode â data won&apos;t be saved. <a onClick={() => router.push('/auth/signup')} style={{ fontWeight: 700, cursor: 'pointer', textDecoration: 'underline' }}>Sign up</a> to save your work.</span>
+              </div>
+            )}
+            <main style={{ flex: 1, overflow: 'auto', padding: 32 }}>
+              {children}
+            </main>
+          </div>
         </div>
-      </div>
-    </ToastProvider>
+      </ToastProvider>
+    </UserContext.Provider>
   )
 }
