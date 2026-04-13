@@ -19,8 +19,8 @@ const permissionsList = [
 
 export default function ClientPortalPage() {
   const { toast } = useToast()
-  const [cases, setCases] = useState(store.getCases())
-  const [clients, setClients] = useState(store.getInvitedClients())
+  const [cases, setCases] = useState<any[]>(store.getCases())
+  const [clients, setClients] = useState<any[]>(store.getInvitedClients())
   const [showInvite, setShowInvite] = useState(false)
   const [inviteForm, setInviteForm] = useState({ caseId: '', name: '', email: '' })
   const [permissions, setPermissions] = useState(['view_case', 'view_docs'])
