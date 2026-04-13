@@ -136,7 +136,7 @@ export default function ClientPortalPage() {
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          {clients.map((cl, i) => {
+          {clients.map((cl: any, i: number) => {
             const si = statusIcon(cl.status)
             return (
               <div key={cl.id} className="card" style={{ padding: '18px 24px', display: 'flex', alignItems: 'center', gap: 16, animationDelay: `${i * 0.05}s` }}>
@@ -147,7 +147,7 @@ export default function ClientPortalPage() {
                   <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 2 }}>{cl.name}</div>
                   <div style={{ fontSize: 12, color: 'var(--tx2)' }}>{cl.email} &middot; {cl.caseTitle}</div>
                   <div style={{ display: 'flex', gap: 6, marginTop: 6, flexWrap: 'wrap' }}>
-                    {cl.permissions.map(p => (
+                    {cl.permissions.map((p: string) => (
                       <span key={p} style={{ fontSize: 10, padding: '2px 8px', borderRadius: 6, background: 'var(--bg2)', color: 'var(--tx2)' }}>{p}</span>
                     ))}
                   </div>
@@ -182,7 +182,7 @@ export default function ClientPortalPage() {
               <label style={{ fontSize: 13, fontWeight: 600, marginBottom: 6, display: 'block', color: 'var(--tx2)' }}>Select Case</label>
               <select className="select-field" style={{ marginBottom: 16 }} value={inviteForm.caseId} onChange={e => setInviteForm({ ...inviteForm, caseId: e.target.value })}>
                 <option value="">Choose a case</option>
-                {cases.map(c => <option key={c.id} value={c.id}>{c.title}</option>)}
+                {cases.map((c: any) => <option key={c.id} value={c.id}>{c.title}</option>)}
               </select>
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 20 }}>
