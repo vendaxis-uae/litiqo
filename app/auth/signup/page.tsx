@@ -19,10 +19,18 @@ export default function SignupPage() {
     setLoading(true)
     try {
       // This is like registering at the car dealership
-      // Supabase creates a new user account + sends confirmation email
-      // The trigger we set up in schema.sql auto-creates their profile
-      await signUp(email, password, name)
-      setSuccess(true)
+      // Supabase creates a new user account
+      // If email confirmation is disabled: user can sign in immediately
+      // If email confirmation is enabled: they need to click the link first
+      const result = await signUp(email, password, name)
+      // Check if the user was auto-confirmed (session exists)
+      if (result?.session) {
+        // Auto-confirmed â redirect to login with success message
+        router.push('/auth/login?registered=true')
+      } else {
+        // Email confirmation required â show the "check email" screen
+        setSuccess(true)
+      }
     } catch (err: any) {
       setError(err.message || 'Something went wrong')
       setLoading(false)
@@ -41,7 +49,7 @@ export default function SignupPage() {
           {success ? (
             // After successful signup, show confirmation message
             <div style={{ textAlign: 'center', padding: '20px 0' }}>
-              <div style={{ width: 64, height: 64, borderRadius: '50%', background: 'var(--okbg)', color: 'var(--ok)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px', fontSize: 28 }}>✓</div>
+              <div style={{ width: 64, height: 64, borderRadius: '50%', background: 'var(--okbg)', color: 'var(--ok)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px', fontSize: 28 }}>â</div>
               <h2 style={{ fontSize: 24, fontWeight: 800, marginBottom: 8 }}>Check your email</h2>
               <p style={{ fontSize: 14, color: 'var(--tx2)', lineHeight: 1.7, marginBottom: 24 }}>
                 We sent a confirmation link to <strong>{email}</strong>.<br />
