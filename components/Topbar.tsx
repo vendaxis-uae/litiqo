@@ -4,15 +4,19 @@ import { useRouter } from 'next/navigation'
 import { useState, useEffect } from 'react'
 import { store } from '@/lib/store'
 import { useToast } from './Toast'
+import { useUser } from '@/lib/UserContext'
 
 export default function Topbar() {
   const router = useRouter()
   const { toast } = useToast()
+  const { user, demoMode } = useUser()
   const [unread, setUnread] = useState(store.getUnreadCount())
 
   useEffect(() => {
     return store.subscribe(() => setUnread(store.getUnreadCount()))
   }, [])
+
+  const userInitial = user?.user_metadata?.full_name?.charAt(0)?.toUpperCase() || user?.email?.charAt(0)?.toUpperCase() || (demoMode ? 'D' : 'U')
 
   return (
     <div style={{
@@ -86,7 +90,7 @@ export default function Topbar() {
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         color: '#fff', fontWeight: 700, fontSize: 14, cursor: 'pointer',
       }}>
-        A
+        {userInitial}
       </div>
     </div>
   )
