@@ -126,16 +126,14 @@ export default function DocumentsPage() {
         // Add document to case — save to real DB if logged in, or demo store
         const c2 = cases.find((cs: any) => cs.id === selectedCase)
         if (c2 && userId) {
-          try {
-            await createSupaDoc({
-              case_id: c2.id,
-              name: `${docName}.pdf`,
-              doc_type: docType || 'Brief',
-              content: preview,
-              generated_by_ai: true,
-              created_by: userId,
-            })
-          } catch { /* fallback to demo */ }
+          createSupaDoc({
+            case_id: c2.id,
+            name: `${docName}.pdf`,
+            doc_type: docType || 'Brief',
+            content: '',
+            generated_by_ai: true,
+            created_by: userId,
+          }).catch(() => { /* fallback to demo */ })
         } else if (c2) {
           store.addDocument(c2.id, { name: `${docName}.pdf`, type: docType || 'Brief', status: 'Draft' })
         }
