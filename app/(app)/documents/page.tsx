@@ -5,14 +5,14 @@ import { store } from '@/lib/store'
 import { getUser, getCases as getSupaCases, createDocument as createSupaDoc } from '@/lib/supabase'
 import { useToast } from '@/components/Toast'
 
-// DOCUMENT GENERATOR — The car's GPS navigation system
+// DOCUMENT GENERATOR â The car's GPS navigation system
 // Just like GPS plans your route, AI plans your legal document
 // You tell it WHERE you want to go (case + document type)
 // It generates the ROUTE (the document content)
 //
 // HOW DATA FLOWS:
 // 1. User picks a case and document type
-// 2. AI generates content (simulated for now — will connect to Claude API later)
+// 2. AI generates content (simulated for now â will connect to Claude API later)
 // 3. Document gets saved to the case (either in DB or demo store)
 
 const templates = [
@@ -111,7 +111,7 @@ export default function DocumentsPage() {
           `Case Number: ${caseNum}\n` +
           `Jurisdiction: ${c?.jurisdiction || 'N/A'}\n` +
           `Date: ${new Date().toLocaleDateString()}\n\n` +
-          `─────────────────────────────\n\n` +
+          `âââââââââââââââââââââââââââââ\n\n` +
           `TO WHOM IT MAY CONCERN\n\n` +
           `Re: ${c?.title}\n\n` +
           `We write on behalf of our client, ${clientName}, in connection with the above-referenced matter against ${oppParty}.\n\n` +
@@ -123,7 +123,7 @@ export default function DocumentsPage() {
           `[Attorney Name]\n` +
           `Litiqo Legal Services`
         )
-        // Add document to case — save to real DB if logged in, or demo store
+        // Add document to case â save to real DB if logged in, or demo store
         const c2 = cases.find((cs: any) => cs.id === selectedCase)
         if (c2 && userId) {
           createSupaDoc({
@@ -156,7 +156,7 @@ export default function DocumentsPage() {
             <label style={{ fontSize: 13, fontWeight: 600, marginBottom: 6, display: 'block', color: 'var(--tx2)' }}>Select Case</label>
             <select className="select-field" style={{ marginBottom: 14 }} value={selectedCase} onChange={e => setSelectedCase(e.target.value)}>
               <option value="">Choose a case</option>
-              {cases.map(c => <option key={c.id} value={c.id}>{c.title}</option>)}
+              {cases.map((c: any) => <option key={c.id} value={c.id}>{c.title}</option>)}
             </select>
 
             <label style={{ fontSize: 13, fontWeight: 600, marginBottom: 6, display: 'block', color: 'var(--tx2)' }}>Document Name</label>
