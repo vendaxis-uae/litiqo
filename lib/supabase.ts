@@ -272,3 +272,41 @@ export async function getUser() {
   const { data: { user } } = await supabase.auth.getUser()
   return user
 }
+
+// ============================================================
+// AI Summary helpers (Claude Haiku 4.5)
+// ============================================================
+
+// Fetch the cached AI summary for a case (may be null if never generated)
+export async function getCaseAiSummary(caseId: string) {
+  const { data, error } = await supabase
+    .from('ai_summaries')
+    .select('*')
+    .eq('case_id', caseId)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+  if (error) throw error
+  return data
+}
+
+// Trigger server-side AI summary generation. Returns the fresh summary.
+export async function generateCaseAiSummary(caseId: string) {
+  const { data: { session } } = await supabase.auth.getSession()
+  if (!session?.access_token) throw new Error('Not authenticated')
+
+  const res = await fetch('/api/ai/summarize-case', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${session.access_token}`,
+    },
+    body: JSON.stringify({ caseId }),
+  })
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}))
+    throw new Error(err.error || `AI summary failed (${res.status})`)
+  }
+  return res.json() as Promise<{ summary: any; saved: boolean }>
+}
