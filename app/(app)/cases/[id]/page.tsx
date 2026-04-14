@@ -4,17 +4,16 @@ import { useRouter, useParams } from 'next/navigation'
 import { ArrowLeft, FileText, Clock, Users, Download, Mail, MessageCircle, Link2, ExternalLink, Trash2 } from 'lucide-react'
 import { store, type Case } from '@/lib/store'
 import { getUser, getCase as getSupaCase, getTimeline as getSupaTimeline, getDocuments as getSupaDocs, updateCase as updateSupaCase, deleteCase as deleteSupaCase } from '@/lib/supabase'
+import AiSummaryCard from '@/components/AiSummaryCard'
 import { useToast } from '@/components/Toast'
-
-// CASE DETAIL â The individual case folder
+// CASE DETAIL â The individual case folder
 // When you open a folder from the filing cabinet, this is what you see
 // It has tabs: Overview (front page), Timeline (diary), Documents (attached papers)
 //
 // HOW DATA FLOWS:
-// 1. Page loads â checks if real user exists
-// 2. If real user â fetches THIS case + timeline + docs from DATABASE
-// 3. If demo â uses demo STORE data
-
+// 1. Page loads â checks if real user exists
+// 2. If real user â fetches THIS case + timeline + docs from DATABASE
+// 3. If demo â uses demo STORE data
 export default function CaseDetailPage() {
   const router = useRouter()
   const params = useParams()
@@ -30,7 +29,6 @@ export default function CaseDetailPage() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
-
   useEffect(() => {
     async function loadCase() {
       try {
@@ -50,33 +48,32 @@ export default function CaseDetailPage() {
     loadCase()
     return store.subscribe(() => setCase(store.getCase(params.id as string)))
   }, [params.id])
-
   const handleEditClick = () => { setEditForm({ type: c.type, jurisdiction: c.jurisdiction, priority: c.priority, filingDate: c.filingDate, hearingDate: c.hearingDate, clientName: c.clientName, clientEmail: c.clientEmail, opposingParty: c.opposingParty, description: c.description }); setEditing(true) }
   const handleSaveEdit = async () => { setIsSaving(true); try { const user = await getUser(); if (user) { await updateSupaCase(params.id as string, { case_type: editForm.type, jurisdiction: editForm.jurisdiction, priority: editForm.priority, filing_date: editForm.filingDate, hearing_date: editForm.hearingDate, client_name: editForm.clientName, client_email: editForm.clientEmail, opposing_party: editForm.opposingParty, description: editForm.description }); const updatedCase = await getSupaCase(params.id as string); if (updatedCase) { setCase({ ...updatedCase, caseNumber: updatedCase.case_number, type: updatedCase.case_type, clientName: updatedCase.client_name, clientEmail: updatedCase.client_email, clientPhone: updatedCase.client_phone, opposingParty: updatedCase.opposing_party, courtName: updatedCase.court_name, judgeName: updatedCase.judge_name, filingDate: updatedCase.filing_date, hearingDate: updatedCase.hearing_date, createdAt: updatedCase.created_at, timeline: [], documents: [] }) }; setEditing(false); toast('Case updated successfully', 'success') } } catch (error) { toast('Failed to update case', 'error'); console.error(error) } finally { setIsSaving(false) } }
   const handleCancelEdit = () => { setEditing(false); setEditForm({}) }
   const handleStatusChange = async (newStatus: string) => { try { const user = await getUser(); if (user) { await updateSupaCase(params.id as string, { status: newStatus }); setCase({ ...c, status: newStatus }); toast('Status updated', 'success') } } catch (error) { toast('Failed to update status', 'error'); console.error(error) } }
   const handleDeleteCase = async () => { setIsDeleting(true); try { const user = await getUser(); if (user) { await deleteSupaCase(params.id as string); toast('Case deleted', 'success'); router.push('/cases') } } catch (error) { toast('Failed to delete case', 'error'); console.error(error) } finally { setIsDeleting(false); setShowDeleteConfirm(false) } }
-: 'Documents' },
+  if (!c) return <div className="animate-fade-in" style={{ padding: 40, textAlign: 'center', color: 'var(--tx2)' }}>Loading case…</div>
+  const tabs = [
+    { id: 'overview', label: 'Overview' },
+    { id: 'timeline', label: 'Timeline' },
+    { id: 'documents', label: 'Documents' },
   ]
-
   const statusColor = (status: string) => {
     if (status === 'New') return 'badge-accent'
     if (status === 'In Progress' || status === 'Active') return 'badge-warn'
     if (status === 'Filing Ready') return 'badge-ok'
     return 'badge-accent'
   }
-
   const timelineIcon = (type: string) => {
     const colors: Record<string, string> = { filing: 'var(--ac)', hearing: 'var(--wn)', document: 'var(--ok)', communication: 'var(--ac2)', milestone: 'var(--ac)', note: 'var(--txm)' }
     return colors[type] || 'var(--txm)'
   }
-
   return (
     <div className="animate-fade-in">
       <button onClick={() => router.push('/cases')} style={{ display: 'flex', alignItems: 'center', gap: 6, color: 'var(--tx2)', fontSize: 13, fontWeight: 500, cursor: 'pointer', background: 'none', border: 'none', marginBottom: 16 }}>
         <ArrowLeft size={16} /> Back to Cases
       </button>
-
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
         <div>
@@ -136,7 +133,6 @@ export default function CaseDetailPage() {
           )}
         </div>
       </div>
-
       {/* Tabs */}
       <div style={{ display: 'flex', gap: 4, marginBottom: 24, borderBottom: '1px solid var(--bd)', paddingBottom: 0 }}>
         {tabs.map(t => (
@@ -155,10 +151,12 @@ export default function CaseDetailPage() {
           </button>
         ))}
       </div>
-
       {/* OVERVIEW TAB */}
       {activeTab === 'overview' && (
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
+          <div style={{ gridColumn: '1 / -1' }}>
+            <AiSummaryCard caseId={c.id} />
+          </div>
           <div className="card">
             <h3 style={{ fontSize: 16, fontWeight: 700, marginBottom: 16 }}>Case Details</h3>
             <div style={{ display: 'grid', gap: 12 }}>
@@ -272,12 +270,12 @@ export default function CaseDetailPage() {
               <>
                 <div style={{ marginBottom: 16 }}>
                   <div style={{ fontSize: 12, color: 'var(--tx2)', marginBottom: 4 }}>Client</div>
-                  <div style={{ fontSize: 14, fontWeight: 600 }}>{c.clientName || 'â'}</div>
+                  <div style={{ fontSize: 14, fontWeight: 600 }}>{c.clientName || 'â'}</div>
                   <div style={{ fontSize: 12, color: 'var(--tx2)' }}>{c.clientEmail}</div>
                 </div>
                 <div style={{ borderTop: '1px solid var(--bd)', paddingTop: 16 }}>
                   <div style={{ fontSize: 12, color: 'var(--tx2)', marginBottom: 4 }}>Opposing Party</div>
-                  <div style={{ fontSize: 14, fontWeight: 600 }}>{c.opposingParty || 'â'}</div>
+                  <div style={{ fontSize: 14, fontWeight: 600 }}>{c.opposingParty || 'â'}</div>
                 </div>
               </>
             )}
@@ -299,7 +297,6 @@ export default function CaseDetailPage() {
           ) : null}
         </div>
       )}
-
       {/* TIMELINE TAB */}
       {activeTab === 'timeline' && (
         <div style={{ maxWidth: 700 }}>
@@ -327,7 +324,6 @@ export default function CaseDetailPage() {
           )}
         </div>
       )}
-
       {/* DOCUMENTS TAB */}
       {activeTab === 'documents' && (
         <div>
@@ -360,7 +356,6 @@ export default function CaseDetailPage() {
           )}
         </div>
       )}
-
       {/* Document Modal */}
       {showDocModal && selectedDoc && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 9990, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
@@ -371,7 +366,7 @@ export default function CaseDetailPage() {
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '24px 28px 16px', borderBottom: '1px solid var(--bd)' }}>
               <h3 style={{ fontSize: 18, fontWeight: 700 }}>{selectedDoc.name}</h3>
-              <button onClick={() => setShowDocModal(false)} style={{ width: 32, height: 32, borderRadius: 8, border: '1px solid var(--bd)', background: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--tx2)' }}>â</button>
+              <button onClick={() => setShowDocModal(false)} style={{ width: 32, height: 32, borderRadius: 8, border: '1px solid var(--bd)', background: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--tx2)' }}>â</button>
             </div>
             <div style={{ padding: '24px 28px' }}>
               <div style={{ background: 'var(--bg2)', borderRadius: 12, padding: 24, minHeight: 200, marginBottom: 20, fontSize: 13, color: 'var(--tx2)', lineHeight: 1.8 }}>
@@ -399,7 +394,6 @@ export default function CaseDetailPage() {
           </div>
         </div>
       )}
-
       {/* Delete Confirmation Modal */}
       {showDeleteConfirm && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 9995, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
