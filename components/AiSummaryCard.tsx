@@ -18,14 +18,18 @@ interface Props {
   caseId: string
 }
 
+const isUuid = (id: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)
+
 export default function AiSummaryCard({ caseId }: Props) {
   const [summary, setSummary] = useState<AiSummary | null>(null)
   const [createdAt, setCreatedAt] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [generating, setGenerating] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const isDemoCase = !isUuid(caseId)
 
   useEffect(() => {
+    if (isDemoCase) return
     let cancelled = false
     ;(async () => {
       setLoading(true)
@@ -43,7 +47,7 @@ export default function AiSummaryCard({ caseId }: Props) {
       }
     })()
     return () => { cancelled = true }
-  }, [caseId])
+  }, [caseId, isDemoCase])
 
   const handleGenerate = async () => {
     setGenerating(true)
@@ -62,70 +66,110 @@ export default function AiSummaryCard({ caseId }: Props) {
   const hasSummary = !!summary
 
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-      {/* Header */}
-      <div className="flex items-center justify-between px-6 py-4 bg-gradient-to-r from-purple-50 to-indigo-50 border-b border-gray-200">
-        <div className="flex items-center gap-2">
-          <Sparkles className="w-5 h-5 text-purple-600" />
-          <h3 className="text-lg font-semibold text-gray-900">AI Case Summary</h3>
-          <span className="text-xs px-2 py-0.5 rounded-full bg-purple-100 text-purple-700 font-medium">Claude Haiku 4.5</span>
+    <div style={{
+      background: 'var(--bgc)',
+      border: '1px solid var(--bd)',
+      borderRadius: 16,
+      overflow: 'hidden',
+      boxShadow: 'var(--shadow2)',
+      position: 'relative',
+    }}>
+      <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 3, background: 'var(--grad1)' }} />
+
+      <div style={{
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        padding: '20px 24px',
+        background: 'var(--grad-soft)',
+        borderBottom: '1px solid var(--bd)',
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div style={{
+            width: 36, height: 36, borderRadius: 10,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            background: 'var(--ac)', color: 'var(--gold)',
+          }}>
+            <Sparkles size={18} />
+          </div>
+          <div>
+            <h3 style={{ fontSize: 16, fontWeight: 700, color: 'var(--tx)', letterSpacing: '-0.01em' }}>AI Case Summary</h3>
+            <div style={{ fontSize: 11, color: 'var(--tx2)', fontWeight: 500, marginTop: 2, letterSpacing: '0.04em', textTransform: 'uppercase' }}>Claude Haiku 4.5</div>
+          </div>
         </div>
-        <button
-          onClick={handleGenerate}
-          disabled={generating}
-          className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-white bg-purple-600 hover:bg-purple-700 disabled:bg-purple-300 rounded-lg transition-colors"
-        >
-          <RefreshCw className={`w-4 h-4 ${generating ? 'animate-spin' : ''}`} />
-          {generating ? 'Generating...' : hasSummary ? 'Regenerate' : 'Generate Summary'}
-        </button>
+        {!isDemoCase && (
+          <button onClick={handleGenerate} disabled={generating} className="btn-primary" style={{ opacity: generating ? 0.7 : 1, cursor: generating ? 'wait' : 'pointer' }}>
+            <RefreshCw size={14} style={{ animation: generating ? 'spin 1s linear infinite' : 'none' }} />
+            {generating ? 'Generating...' : hasSummary ? 'Regenerate' : 'Generate Summary'}
+          </button>
+        )}
       </div>
 
-      {/* Body */}
-      <div className="p-6">
-        {loading && (
-          <div className="text-center py-6 text-gray-500 text-sm">Loading summary…</div>
-        )}
-
-        {!loading && !hasSummary && !generating && (
-          <div className="text-center py-8">
-            <Sparkles className="w-10 h-10 text-purple-300 mx-auto mb-3" />
-            <p className="text-gray-600 mb-1 font-medium">No AI summary yet</p>
-            <p className="text-sm text-gray-500">
-              Click "Generate Summary" to analyze this case with AI.
+      <div style={{ padding: 24 }}>
+        {isDemoCase && (
+          <div style={{ textAlign: 'center', padding: '28px 20px' }}>
+            <Sparkles size={32} style={{ color: 'var(--gold)', opacity: 0.5, marginBottom: 12 }} />
+            <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--tx)', marginBottom: 6 }}>Demo case — AI not available</p>
+            <p style={{ fontSize: 13, color: 'var(--tx2)', maxWidth: 420, margin: '0 auto', lineHeight: 1.5 }}>
+              AI summaries are available on cases saved to your account. Create a new case to try it out.
             </p>
           </div>
         )}
 
+        {!isDemoCase && loading && (
+          <div style={{ textAlign: 'center', padding: 24, color: 'var(--tx2)', fontSize: 13 }}>Loading summary…</div>
+        )}
+
+        {!isDemoCase && !loading && !hasSummary && !generating && (
+          <div style={{ textAlign: 'center', padding: '28px 20px' }}>
+            <Sparkles size={32} style={{ color: 'var(--gold)', opacity: 0.4, marginBottom: 12 }} />
+            <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--tx)', marginBottom: 4 }}>No AI summary yet</p>
+            <p style={{ fontSize: 13, color: 'var(--tx2)' }}>Click "Generate Summary" to analyze this case with AI.</p>
+          </div>
+        )}
+
         {generating && !hasSummary && (
-          <div className="text-center py-8">
-            <div className="w-10 h-10 border-4 border-purple-200 border-t-purple-600 rounded-full animate-spin mx-auto mb-3" />
-            <p className="text-sm text-gray-600">Analyzing case details…</p>
+          <div style={{ textAlign: 'center', padding: '28px 20px' }}>
+            <div style={{
+              width: 36, height: 36, margin: '0 auto 12px',
+              border: '3px solid var(--acg2)', borderTopColor: 'var(--ac)',
+              borderRadius: '50%', animation: 'spin 0.8s linear infinite',
+            }} />
+            <p style={{ fontSize: 13, color: 'var(--tx2)' }}>Analyzing case details…</p>
           </div>
         )}
 
         {error && (
-          <div className="mb-4 p-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700 flex items-start gap-2">
-            <AlertTriangle className="w-4 h-4 mt-0.5 flex-shrink-0" />
+          <div style={{
+            marginBottom: 16, padding: 12, borderRadius: 10,
+            background: 'var(--dnbg)', border: '1px solid var(--dnbd)',
+            fontSize: 13, color: 'var(--dn)',
+            display: 'flex', alignItems: 'flex-start', gap: 8,
+          }}>
+            <AlertTriangle size={16} style={{ marginTop: 1, flexShrink: 0 }} />
             <span>{error}</span>
           </div>
         )}
 
         {hasSummary && (
-          <div className="space-y-5">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
             {summary.overview && (
-              <div>
-                <p className="text-gray-800 leading-relaxed">{summary.overview}</p>
+              <div style={{
+                padding: 16,
+                background: 'var(--grad-soft)',
+                borderLeft: '3px solid var(--gold)',
+                borderRadius: '0 10px 10px 0',
+              }}>
+                <p style={{ fontSize: 14, lineHeight: 1.6, color: 'var(--tx)' }}>{summary.overview}</p>
               </div>
             )}
 
-            <div className="grid md:grid-cols-2 gap-5">
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 16 }}>
               {summary.parties && summary.parties.length > 0 && (
-                <Section icon={<Users className="w-4 h-4" />} title="Parties">
-                  <ul className="space-y-1 text-sm">
+                <Section icon={<Users size={14} />} title="Parties">
+                  <ul style={{ listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 6 }}>
                     {summary.parties.map((p, i) => (
-                      <li key={i} className="flex gap-2">
-                        <span className="text-gray-500 min-w-[90px]">{p.role}:</span>
-                        <span className="text-gray-900 font-medium">{p.name}</span>
+                      <li key={i} style={{ display: 'flex', gap: 10, fontSize: 13 }}>
+                        <span style={{ color: 'var(--tx2)', minWidth: 90, fontWeight: 500 }}>{p.role}:</span>
+                        <span style={{ color: 'var(--tx)', fontWeight: 600 }}>{p.name}</span>
                       </li>
                     ))}
                   </ul>
@@ -133,24 +177,24 @@ export default function AiSummaryCard({ caseId }: Props) {
               )}
 
               {summary.claims && summary.claims.length > 0 && (
-                <Section icon={<Scale className="w-4 h-4" />} title="Key Claims">
+                <Section icon={<Scale size={14} />} title="Key Claims">
                   <BulletList items={summary.claims} />
                 </Section>
               )}
 
               {summary.relief_sought && summary.relief_sought.length > 0 && (
-                <Section icon={<Target className="w-4 h-4" />} title="Relief Sought">
+                <Section icon={<Target size={14} />} title="Relief Sought">
                   <BulletList items={summary.relief_sought} />
                 </Section>
               )}
 
               {summary.key_dates && summary.key_dates.length > 0 && (
-                <Section icon={<Clock className="w-4 h-4" />} title="Key Dates">
-                  <ul className="space-y-1 text-sm">
+                <Section icon={<Clock size={14} />} title="Key Dates">
+                  <ul style={{ listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 6 }}>
                     {summary.key_dates.map((d, i) => (
-                      <li key={i} className="flex gap-2">
-                        <span className="text-gray-500 min-w-[100px] font-mono text-xs">{d.date}</span>
-                        <span className="text-gray-800">{d.event}</span>
+                      <li key={i} style={{ display: 'flex', gap: 10, fontSize: 13 }}>
+                        <span style={{ color: 'var(--tx2)', minWidth: 100, fontFamily: 'monospace', fontSize: 11, paddingTop: 2 }}>{d.date}</span>
+                        <span style={{ color: 'var(--tx)' }}>{d.event}</span>
                       </li>
                     ))}
                   </ul>
@@ -159,22 +203,26 @@ export default function AiSummaryCard({ caseId }: Props) {
             </div>
 
             {summary.suggested_next_steps && summary.suggested_next_steps.length > 0 && (
-              <Section icon={<ListChecks className="w-4 h-4 text-green-600" />} title="Suggested Next Steps" tint="green">
-                <BulletList items={summary.suggested_next_steps} dotColor="bg-green-500" />
+              <Section icon={<ListChecks size={14} style={{ color: 'var(--ok)' }} />} title="Suggested Next Steps" tint="ok">
+                <BulletList items={summary.suggested_next_steps} dotColor="var(--ok)" />
               </Section>
             )}
 
             {summary.risk_flags && summary.risk_flags.length > 0 && (
-              <Section icon={<AlertTriangle className="w-4 h-4 text-amber-600" />} title="Risk Flags" tint="amber">
-                <BulletList items={summary.risk_flags} dotColor="bg-amber-500" />
+              <Section icon={<AlertTriangle size={14} style={{ color: 'var(--wn)' }} />} title="Risk Flags" tint="wn">
+                <BulletList items={summary.risk_flags} dotColor="var(--wn)" />
               </Section>
             )}
 
             {createdAt && (
-              <div className="pt-3 border-t border-gray-100 flex items-center gap-1.5 text-xs text-gray-400">
-                <CheckCircle2 className="w-3.5 h-3.5" />
+              <div style={{
+                paddingTop: 14, borderTop: '1px solid var(--bd)',
+                display: 'flex', alignItems: 'center', gap: 6,
+                fontSize: 11, color: 'var(--txm)', letterSpacing: '0.02em',
+              }}>
+                <CheckCircle2 size={12} />
                 Generated {new Date(createdAt).toLocaleString()}
-                <span className="mx-1">·</span>
+                <span style={{ margin: '0 4px' }}>·</span>
                 Not legal advice
               </div>
             )}
@@ -194,15 +242,17 @@ function Section({
   icon: React.ReactNode
   title: string
   children: React.ReactNode
-  tint?: 'default' | 'green' | 'amber'
+  tint?: 'default' | 'ok' | 'wn'
 }) {
-  const bg =
-    tint === 'green' ? 'bg-green-50 border-green-100' :
-    tint === 'amber' ? 'bg-amber-50 border-amber-100' :
-    'bg-gray-50 border-gray-100'
+  const bg = tint === 'ok' ? 'var(--okbg)' : tint === 'wn' ? 'var(--wnbg)' : 'var(--bg2)'
+  const bd = tint === 'ok' ? 'var(--okbd)' : tint === 'wn' ? 'var(--wnbd)' : 'var(--bd)'
   return (
-    <div className={`rounded-lg border ${bg} p-4`}>
-      <div className="flex items-center gap-1.5 mb-2 text-gray-700 font-semibold text-sm">
+    <div style={{ borderRadius: 12, padding: 14, background: bg, border: `1px solid ${bd}` }}>
+      <div style={{
+        display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10,
+        color: 'var(--tx)', fontWeight: 700, fontSize: 12,
+        letterSpacing: '0.03em', textTransform: 'uppercase',
+      }}>
         {icon}
         {title}
       </div>
@@ -211,12 +261,12 @@ function Section({
   )
 }
 
-function BulletList({ items, dotColor = 'bg-purple-500' }: { items: string[]; dotColor?: string }) {
+function BulletList({ items, dotColor = 'var(--ac)' }: { items: string[]; dotColor?: string }) {
   return (
-    <ul className="space-y-1.5 text-sm text-gray-800">
+    <ul style={{ listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 8 }}>
       {items.map((item, i) => (
-        <li key={i} className="flex gap-2">
-          <span className={`w-1.5 h-1.5 rounded-full ${dotColor} mt-1.5 flex-shrink-0`} />
+        <li key={i} style={{ display: 'flex', gap: 10, fontSize: 13, color: 'var(--tx)', lineHeight: 1.5 }}>
+          <span style={{ width: 6, height: 6, borderRadius: '50%', background: dotColor, marginTop: 7, flexShrink: 0 }} />
           <span>{item}</span>
         </li>
       ))}
